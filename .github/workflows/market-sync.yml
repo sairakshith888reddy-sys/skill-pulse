@@ -2,9 +2,8 @@ name: Automated Market Data Extractor
 
 on:
   schedule:
-    # Runs automatically every 6 hours
     - cron: '0 */6 * * *'
-  workflow_dispatch: # Allows manual trigger from GitHub UI anytime
+  workflow_dispatch:
 
 jobs:
   extract-and-sync:
@@ -23,6 +22,6 @@ jobs:
 
       - name: Execute Live Extractor
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://yvvwnjbejhhfhodwrhis.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_krHDJfg-y8ylEvpsFp3pCA_KIoQxKPz' }}
         run: node scripts/extract-jobs.js
