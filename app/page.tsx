@@ -1,167 +1,181 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { TrendingUp, TrendingDown, CheckCircle2, XCircle } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+import { 
+  Shield, Brain, Cloud, Code, Blocks, Cpu, 
+  Smartphone, Palette, Wrench, Database, CheckCircle, Gamepad,
+  TrendingUp, TrendingDown, Layers
+} from "lucide-react";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://yvvwnjbejhhfhodwrhis.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_krHDJfg-y8ylEvpsFp3pCA_KIoQxKPz';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://yvvwnjbejhhfhodwrhis.supabase.co";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_krHDJfg-y8ylEvpsFp3pCA_KIoQxKPz";
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Fallback data ensuring immediate UI rendering
-const defaultDomains = [
-  { id: 1, name: 'Cyber Security', open_jobs: 42522, change_24h: 3.5, gap_percentage: 28 },
-  { id: 2, name: 'Mechanical CAD', open_jobs: 18416, change_24h: -1.2, gap_percentage: 15 }
-];
-
-const defaultRoles = [
-  {
-    id: 1,
-    domain_name: 'Cyber Security',
-    role: 'Cyber Security Specialist',
-    demand_score: 88,
-    required_skills: ['Network Security', 'Ethical Hacking', 'SIEM', 'Cloud Security', 'Incident Response'],
-    curriculum_skills: ['Network Security', 'Ethical Hacking', 'SIEM'],
-    gap_skills: ['Cloud Security', 'Incident Response']
-  },
-  {
-    id: 2,
-    domain_name: 'Mechanical CAD',
-    role: 'CAD Design Engineer',
-    demand_score: 75,
-    required_skills: ['SolidWorks', 'AutoCAD', 'FEA Analysis', 'GD&T', '3D Modeling'],
-    curriculum_skills: ['SolidWorks', 'AutoCAD', '3D Modeling'],
-    gap_skills: ['FEA Analysis', 'GD&T']
-  }
-];
+const ICON_MAP: Record<string, any> = {
+  Shield, Brain, Cloud, Code, Blocks, Cpu,
+  Smartphone, Palette, Wrench, Database, CheckCircle, Gamepad
+};
 
 export default function Home() {
-  const [domains, setDomains] = useState<any[]>(defaultDomains);
-  const [roles, setRoles] = useState<any[]>(defaultRoles);
-  const [selectedDomain, setSelectedDomain] = useState<string>('Cyber Security');
+  const [domains, setDomains] = useState<any[]>([]);
+  const [selectedDomain, setSelectedDomain] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const { data: domainData } = await supabase.from('domains').select('*');
-        const { data: roleData } = await supabase.from('role_skills').select('*');
-        if (domainData && domainData.length > 0) {
-          setDomains(domainData);
-          setSelectedDomain(domainData[0].name);
-        }
-        if (roleData && roleData.length > 0) setRoles(roleData);
-      } catch (err) {
-        console.error('Fetch error:', err);
+    const fetchDomains = async () => {
+      const { data, error } = await supabase.from("domains").select("*");
+      if (error) {
+        console.error("Error fetching domains:", error.message);
+      } else if (data && data.length > 0) {
+        setDomains(data);
+        setSelectedDomain(data[0]); // Select first department by default
       }
-    }
-    fetchData();
+      setLoading(false);
+    };
+
+    fetchDomains();
+
+    const channel = supabase
+      .channel("domains-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "domains" },
+        (payload) => {
+          if (payload.eventType === "UPDATE") {
+            setDomains((prev) =>
+              prev.map((d) => (d.name === payload.new.name ? { ...d, ...payload.new } : d))
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  // Filter roles based on selected department/domain tab
-  const filteredRoles = roles.filter(
-    (r) =>
-      (r.domain_name || '').toLowerCase() === selectedDomain.toLowerCase() ||
-      (r.domain || '').toLowerCase() === selectedDomain.toLowerCase() ||
-      r.role.toLowerCase().includes(selectedDomain.toLowerCase().split(' ')[0])
-  );
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-slate-400">
+        Syncing market skills...
+      </div>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-8">
-      <h1 className="text-3xl font-bold mb-2 text-cyan-400">Live Skill Gap Pulse</h1>
-      <p className="text-slate-400 mb-8">Real-time comparison between industry market demand and training curriculums.</p>
+    <main className="p-8 max-w-7xl mx-auto text-slate-100">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8 border-b pb-4 border-slate-800">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Live Skill Gap Pulse</h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Real-time comparison between industry market demand and training curriculums.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+          <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+            Live Market Stream
+          </span>
+        </div>
+      </div>
 
-      {/* Interactive Domain Tabs */}
-      <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Select Department</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        {domains.map((d) => {
-          const isSelected = selectedDomain.toLowerCase() === d.name.toLowerCase();
+      <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+        SELECT DEPARTMENT ({domains.length} ACTIVE)
+      </h2>
+
+      {/* Grid of All Domain Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        {domains.map((domain) => {
+          const IconComponent = ICON_MAP[domain.icon_name] || Layers;
+          const isSelected = selectedDomain?.name === domain.name;
+
           return (
-            <button
-              key={d.id}
-              onClick={() => setSelectedDomain(d.name)}
-              className={`p-4 rounded-xl flex justify-between items-center transition-all cursor-pointer border text-left ${
+            <div
+              key={domain.name}
+              onClick={() => setSelectedDomain(domain)}
+              className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 ${
                 isSelected
-                  ? 'bg-slate-900 border-cyan-500 ring-2 ring-cyan-500/20'
-                  : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 opacity-70 hover:opacity-100'
+                  ? "bg-slate-900 border-cyan-500 shadow-md shadow-cyan-500/10"
+                  : "bg-slate-950 border-slate-800 hover:border-slate-700"
               }`}
             >
-              <div>
-                <h2 className="font-semibold text-lg text-slate-100">{d.name}</h2>
-                <p className="text-xs text-slate-400">{(d.open_jobs || 0).toLocaleString()} Open Roles</p>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-slate-800 text-cyan-400">
+                    <IconComponent className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base">{domain.name}</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {domain.open_jobs?.toLocaleString() ?? "N/A"} Open Roles
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className={`flex items-center justify-end gap-1 text-xs font-semibold ${
+                    domain.change_24h >= 0 ? "text-emerald-400" : "text-rose-400"
+                  }`}>
+                    {domain.change_24h >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                    {domain.change_24h > 0 ? `+${domain.change_24h}%` : `${domain.change_24h}%`}
+                  </div>
+                  <p className="text-xs text-rose-400/90 font-medium mt-1">
+                    {domain.gap_percentage}% Skill Deficit
+                  </p>
+                </div>
               </div>
-              <div className="text-right">
-                <span className={`flex items-center text-sm font-bold ${d.change_24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {d.change_24h >= 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-                  {d.change_24h}%
-                </span>
-                <p className="text-xs text-rose-400 font-mono mt-1">{d.gap_percentage}% Skill Deficit</p>
-              </div>
-            </button>
+            </div>
           );
         })}
       </div>
 
-      {/* Selected Domain Breakdown */}
-      <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-        <h2 className="text-xl font-bold">
-          Detailed Analysis: <span className="text-cyan-400">{selectedDomain}</span>
-        </h2>
-        <span className="text-xs text-slate-400">{filteredRoles.length} Roles Active</span>
-      </div>
+      {/* Detailed Analysis View for Selected Department */}
+      {selectedDomain && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
+          <div className="flex items-center justify-between mb-6 border-b border-slate-800/80 pb-4">
+            <h2 className="text-xl font-bold">
+              Detailed Analysis: <span className="text-cyan-400">{selectedDomain.name}</span>
+            </h2>
+            <span className="text-xs text-slate-400">
+              {selectedDomain.roles_data?.length || 0} Roles Mapped
+            </span>
+          </div>
 
-      {filteredRoles.length === 0 ? (
-        <div className="p-8 text-center text-slate-500 bg-slate-900/40 rounded-xl border border-slate-800">
-          No detailed roles mapped for this department yet.
-        </div>
-      ) : (
-        filteredRoles.map((r) => {
-          const requiredSkills = r.required_skills || r.required_concepts || [];
-          const curriculumSkills = r.curriculum_skills || r.matched_skills || [];
-          const gapSkills = r.gap_skills || [];
-          const demandScore = r.demand_score || 0;
-
-          return (
-            <div key={r.id} className="bg-slate-900 border border-slate-800 p-6 rounded-xl mb-4">
-              <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-100">{r.role || r.role_name}</h3>
-                  <p className="text-xs text-slate-400">Demand Score: {demandScore}</p>
+          {selectedDomain.roles_data && selectedDomain.roles_data.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {selectedDomain.roles_data.map((role: any, idx: number) => (
+                <div key={idx} className="p-4 rounded-lg bg-slate-900 border border-slate-800">
+                  <h4 className="font-semibold text-sm mb-2">{role.title}</h4>
+                  <div className="flex justify-between text-xs text-slate-400 mb-1">
+                    <span>Demand Index:</span>
+                    <span className="text-emerald-400 font-bold">{role.demand}/100</span>
+                  </div>
+                  <div className="w-full bg-slate-800 h-2 rounded-full mb-3 overflow-hidden">
+                    <div 
+                      className="bg-emerald-500 h-full rounded-full" 
+                      style={{ width: `${role.demand}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-slate-300">
+                    <span className="text-slate-500">Core Skill: </span>
+                    <span className="text-cyan-300 font-medium">{role.topSkill}</span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-sm font-mono font-bold text-emerald-400">
-                    {curriculumSkills.length} Taught
-                  </span>
-                  <p className="text-xs text-rose-400">{gapSkills.length} Skill Gaps</p>
-                </div>
-              </div>
-
-              <h4 className="text-sm font-semibold mb-2 text-slate-300">Required Industry Skills vs. Curriculum Match:</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {requiredSkills.map((skill: string, idx: number) => {
-                  const isMatched = curriculumSkills.includes(skill);
-                  return (
-                    <div
-                      key={idx}
-                      className={`flex items-center justify-between p-2 rounded text-xs border ${
-                        isMatched
-                          ? 'bg-emerald-950/30 border-emerald-800 text-emerald-300'
-                          : 'bg-rose-950/30 border-rose-800 text-rose-300'
-                      }`}
-                    >
-                      <span>{skill}</span>
-                      {isMatched ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <XCircle className="w-4 h-4 text-rose-400" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              ))}
             </div>
-          );
-        })
+          ) : (
+            <div className="text-center py-8 text-slate-500 text-sm">
+              No detailed roles mapped for this department yet. Run the updated sync script!
+            </div>
+          )}
+        </div>
       )}
     </main>
   );
